@@ -123,7 +123,7 @@ export default function ScenarioTable({ scenarios, position }: Props) {
           </div>
           <div className="flex items-center">
             <div className="w-3 h-3 bg-red-600 rounded-full mr-2"></div>
-            <span>Difficult (>10% move)</span>
+            <span>Difficult (&gt;10% move)</span>
           </div>
         </div>
       </div>
