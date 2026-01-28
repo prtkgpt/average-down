@@ -1,0 +1,43 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Calculation {
+  id            String   @id @default(cuid())
+  ticker        String   @db.VarChar(10)
+  currentShares Int
+  avgCost       Float
+  currentPrice  Float
+  createdAt     DateTime @default(now())
+  ipHash        String?  @db.VarChar(64)
+  userAgent     String?  @db.Text
+
+  @@index([ticker])
+  @@index([createdAt])
+}
+
+model TickerStats {
+  ticker            String   @id @db.VarChar(10)
+  calculationCount  Int      @default(0)
+  lastCalculated    DateTime @default(now())
+  avgLossPercent    Float?
+}
+
+model SavedCalculation {
+  id           String   @id @db.VarChar(12)
+  ticker       String   @db.VarChar(10)
+  positionData Json
+  scenarios    Json
+  createdAt    DateTime @default(now())
+  views        Int      @default(0)
+
+  @@index([createdAt])
+}
