@@ -16,6 +16,13 @@ export interface Scenario {
   requiredMoveToBreakEven: number;
   requiredMoveTo5Percent: number;
   requiredMoveTo10Percent: number;
+  // New fields for action plans
+  profitAt1Percent: number;
+  requiredMoveTo1Percent: number;
+  profitDollars1Percent: number;
+  profitDollars5Percent: number;
+  profitDollars10Percent: number;
+  riskRewardRatio: number;
 }
 
 export function calculateScenarios(position: Position): Scenario[] {
@@ -32,12 +39,22 @@ export function calculateScenarios(position: Position): Scenario[] {
     const additionalCapital = additionalShares * position.currentPrice;
     const newAvgCost = (totalCost + additionalCapital) / newTotalShares;
     const breakEvenPrice = newAvgCost;
+    const profitAt1Percent = newAvgCost * 1.01;
     const profitAt5Percent = newAvgCost * 1.05;
     const profitAt10Percent = newAvgCost * 1.10;
     
     const requiredMoveToBreakEven = ((breakEvenPrice - position.currentPrice) / position.currentPrice) * 100;
+    const requiredMoveTo1Percent = ((profitAt1Percent - position.currentPrice) / position.currentPrice) * 100;
     const requiredMoveTo5Percent = ((profitAt5Percent - position.currentPrice) / position.currentPrice) * 100;
     const requiredMoveTo10Percent = ((profitAt10Percent - position.currentPrice) / position.currentPrice) * 100;
+
+    // Calculate profit in dollars for each target
+    const profitDollars1Percent = (profitAt1Percent - newAvgCost) * newTotalShares;
+    const profitDollars5Percent = (profitAt5Percent - newAvgCost) * newTotalShares;
+    const profitDollars10Percent = (profitAt10Percent - newAvgCost) * newTotalShares;
+
+    // Risk/Reward ratio (capital at risk / potential profit for 5% target)
+    const riskRewardRatio = profitDollars5Percent > 0 ? additionalCapital / profitDollars5Percent : 999;
 
     scenarios.push({
       sharesToBuy: additionalShares,
@@ -45,11 +62,17 @@ export function calculateScenarios(position: Position): Scenario[] {
       newAvgCost: Math.round(newAvgCost * 100) / 100,
       newTotalShares,
       breakEvenPrice: Math.round(breakEvenPrice * 100) / 100,
+      profitAt1Percent: Math.round(profitAt1Percent * 100) / 100,
       profitAt5Percent: Math.round(profitAt5Percent * 100) / 100,
       profitAt10Percent: Math.round(profitAt10Percent * 100) / 100,
       requiredMoveToBreakEven: Math.round(requiredMoveToBreakEven * 100) / 100,
+      requiredMoveTo1Percent: Math.round(requiredMoveTo1Percent * 100) / 100,
       requiredMoveTo5Percent: Math.round(requiredMoveTo5Percent * 100) / 100,
       requiredMoveTo10Percent: Math.round(requiredMoveTo10Percent * 100) / 100,
+      profitDollars1Percent: Math.round(profitDollars1Percent * 100) / 100,
+      profitDollars5Percent: Math.round(profitDollars5Percent * 100) / 100,
+      profitDollars10Percent: Math.round(profitDollars10Percent * 100) / 100,
+      riskRewardRatio: Math.round(riskRewardRatio * 100) / 100,
     });
   }
 

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Position, calculateScenarios, getCurrentLossPercent, getCurrentLossDollar, formatCurrency, formatPercent } from '@/lib/calculations';
 import ScenarioTable from './ScenarioTable';
 import ShareButton from './ShareButton';
+import ActionPlanCard from './ActionPlanCard';
 
 export default function Calculator({ initialTicker = '' }: { initialTicker?: string }) {
   const [ticker, setTicker] = useState(initialTicker);
@@ -168,6 +169,51 @@ export default function Calculator({ initialTicker = '' }: { initialTicker?: str
       {/* Scenarios */}
       {scenarios.length > 0 && (
         <>
+          {/* Action Plans - Top 3 Recommended */}
+          <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
+            <h3 className="text-2xl font-bold text-gray-800 mb-2">🎯 Recommended Action Plans</h3>
+            <p className="text-sm text-gray-600 mb-6">
+              Complete step-by-step recovery strategies. Pick one that fits your budget and risk tolerance.
+            </p>
+            
+            <div className="space-y-4">
+              {/* Conservative Plan - 1% profit */}
+              <ActionPlanCard 
+                scenario={scenarios[2]} // 15 shares - middle ground
+                position={position!}
+                profitTarget={1}
+                title="Conservative Recovery (1% Profit)"
+                riskLevel="low"
+              />
+
+              {/* Balanced Plan - 5% profit */}
+              <ActionPlanCard 
+                scenario={scenarios[4]} // 25 shares
+                position={position!}
+                profitTarget={5}
+                title="Balanced Recovery (5% Profit)"
+                riskLevel="medium"
+              />
+
+              {/* Aggressive Plan - 10% profit */}
+              <ActionPlanCard 
+                scenario={scenarios[6]} // 40 shares
+                position={position!}
+                profitTarget={10}
+                title="Aggressive Recovery (10% Profit)"
+                riskLevel="high"
+              />
+            </div>
+          </div>
+
+          {/* Detailed Scenarios Table */}
+          <div className="mb-4">
+            <h3 className="text-xl font-bold text-gray-800 mb-2">📊 All Scenarios (Detailed View)</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Want to see more options? Here's the complete breakdown of all scenarios.
+            </p>
+          </div>
+          
           <ScenarioTable scenarios={scenarios} position={position!} />
           {saveId && <ShareButton saveId={saveId} ticker={ticker} />}
         </>

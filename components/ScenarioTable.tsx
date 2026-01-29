@@ -37,6 +37,9 @@ export default function ScenarioTable({ scenarios, position }: Props) {
                 Move Needed
               </th>
               <th className="px-6 py-4 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                1% Profit Price
+              </th>
+              <th className="px-6 py-4 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                 5% Profit Price
               </th>
               <th className="px-6 py-4 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
@@ -90,18 +93,26 @@ export default function ScenarioTable({ scenarios, position }: Props) {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-bold text-gray-900">
+                      {formatCurrency(scenario.profitAt1Percent)}
+                    </div>
+                    <div className="text-xs text-green-600">
+                      +{formatCurrency(scenario.profitDollars1Percent)} profit
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-bold text-gray-900">
                       {formatCurrency(scenario.profitAt5Percent)}
                     </div>
-                    <div className="text-xs text-gray-500">
-                      {formatPercent(scenario.requiredMoveTo5Percent)} move
+                    <div className="text-xs text-green-600">
+                      +{formatCurrency(scenario.profitDollars5Percent)} profit
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-bold text-gray-900">
                       {formatCurrency(scenario.profitAt10Percent)}
                     </div>
-                    <div className="text-xs text-gray-500">
-                      {formatPercent(scenario.requiredMoveTo10Percent)} move
+                    <div className="text-xs text-green-600">
+                      +{formatCurrency(scenario.profitDollars10Percent)} profit
                     </div>
                   </td>
                 </tr>
