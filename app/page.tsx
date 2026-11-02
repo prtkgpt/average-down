@@ -78,11 +78,15 @@ export default async function Home() {
             You're down $32.05 (-16.13%).
           </p>
           <p>
-            <strong>Solution:</strong> Buy 23 more shares at $16.66 for $383.18 additional capital.
+            <strong>You decide:</strong> you think FVRR can bounce 5% to $17.49 tomorrow.
           </p>
           <p>
-            <strong>Result:</strong> Your new average cost becomes $17.50. If FVRR moves to $17.75 
-            (just +6.5%), you're profitable on your entire position.
+            <strong>The tool tells you:</strong> buy 29 shares today at $16.66 ($483). Your average drops to $17.48.
+            Sell all 39 shares at $17.49 and you are at break even. Want 1% profit? Buy 39 shares ($650).
+            Want to spend less? Pick a bigger bounce. At +10% ($18.33) you break even with 10 shares ($167).
+          </p>
+          <p>
+            <strong>The point:</strong> you choose the bounce you believe in. The tool gives you the share count and the sell order.
           </p>
           <p className="text-sm text-gray-600 mt-4">
             This is the exact calculation that inspired AverageDown.io
