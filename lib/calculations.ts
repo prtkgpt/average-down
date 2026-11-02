@@ -5,96 +5,120 @@ export interface Position {
   ticker?: string;
 }
 
-export interface Scenario {
-  sharesToBuy: number;
-  additionalCapital: number;
-  newAvgCost: number;
+// One row: given an exit price, how many shares to buy today
+// so selling everything at that exit price yields the target profit.
+export interface ExitPlan {
+  bouncePercent: number;      // expected move from current price, e.g. 5
+  exitPrice: number;          // current price * (1 + bounce)
+  profitTarget: number;       // 0, 1, 5, 10
+  sharesToBuy: number;        // whole shares
+  capitalRequired: number;
   newTotalShares: number;
-  breakEvenPrice: number;
-  profitAt5Percent: number;
-  profitAt10Percent: number;
-  requiredMoveToBreakEven: number;
-  requiredMoveTo5Percent: number;
-  requiredMoveTo10Percent: number;
-  // New fields for action plans
-  profitAt1Percent: number;
-  requiredMoveTo1Percent: number;
-  profitDollars1Percent: number;
-  profitDollars5Percent: number;
-  profitDollars10Percent: number;
-  riskRewardRatio: number;
+  newAvgCost: number;
+  proceeds: number;           // exitPrice * newTotalShares
+  totalCost: number;          // original cost + capitalRequired
+  profitDollars: number;      // proceeds - totalCost
+  feasible: boolean;          // false if exit price <= current price
 }
 
-export function calculateScenarios(position: Position): Scenario[] {
-  const scenarios: Scenario[] = [];
-  const totalCost = position.shares * position.avgCost;
-  const currentLoss = (position.avgCost - position.currentPrice) / position.avgCost * 100;
+const PROFIT_TARGETS = [0, 1, 5, 10];
+const DEFAULT_BOUNCES = [2, 3, 5, 10, 15, 20];
 
-  // Generate scenarios for different share purchases
-  // Start from 5 shares, go up to 100 in increments
-  const increments = [5, 10, 15, 20, 25, 30, 40, 50, 75, 100];
-  
-  for (const additionalShares of increments) {
-    const newTotalShares = position.shares + additionalShares;
-    const additionalCapital = additionalShares * position.currentPrice;
-    const newAvgCost = (totalCost + additionalCapital) / newTotalShares;
-    const breakEvenPrice = newAvgCost;
-    const profitAt1Percent = newAvgCost * 1.01;
-    const profitAt5Percent = newAvgCost * 1.05;
-    const profitAt10Percent = newAvgCost * 1.10;
-    
-    const requiredMoveToBreakEven = ((breakEvenPrice - position.currentPrice) / position.currentPrice) * 100;
-    const requiredMoveTo1Percent = ((profitAt1Percent - position.currentPrice) / position.currentPrice) * 100;
-    const requiredMoveTo5Percent = ((profitAt5Percent - position.currentPrice) / position.currentPrice) * 100;
-    const requiredMoveTo10Percent = ((profitAt10Percent - position.currentPrice) / position.currentPrice) * 100;
+export function sharesForTarget(position: Position, exitPrice: number, profitPercent: number): number | null {
+  const targetAvg = exitPrice / (1 + profitPercent / 100);
+  // Need target average strictly above current price, else infinite shares
+  // Also reject when the gap is under 0.5% of price: share count explodes into the hundreds of thousands
+  if (targetAvg <= position.currentPrice * 1.005) return null;
+  // Already at or below target average: nothing to buy
+  if (position.avgCost <= targetAvg) return 0;
+  const raw = (position.shares * (position.avgCost - targetAvg)) / (targetAvg - position.currentPrice);
+  return Math.ceil(raw);
+}
 
-    // Calculate profit in dollars for each target
-    const profitDollars1Percent = (profitAt1Percent - newAvgCost) * newTotalShares;
-    const profitDollars5Percent = (profitAt5Percent - newAvgCost) * newTotalShares;
-    const profitDollars10Percent = (profitAt10Percent - newAvgCost) * newTotalShares;
+export function buildExitPlan(position: Position, bouncePercent: number, profitPercent: number): ExitPlan {
+  const exitPrice = round2(position.currentPrice * (1 + bouncePercent / 100));
+  const shares = sharesForTarget(position, exitPrice, profitPercent);
+  const originalCost = position.shares * position.avgCost;
 
-    // Risk/Reward ratio (capital at risk / potential profit for 5% target)
-    const riskRewardRatio = profitDollars5Percent > 0 ? additionalCapital / profitDollars5Percent : 999;
-
-    scenarios.push({
-      sharesToBuy: additionalShares,
-      additionalCapital: Math.round(additionalCapital * 100) / 100,
-      newAvgCost: Math.round(newAvgCost * 100) / 100,
-      newTotalShares,
-      breakEvenPrice: Math.round(breakEvenPrice * 100) / 100,
-      profitAt1Percent: Math.round(profitAt1Percent * 100) / 100,
-      profitAt5Percent: Math.round(profitAt5Percent * 100) / 100,
-      profitAt10Percent: Math.round(profitAt10Percent * 100) / 100,
-      requiredMoveToBreakEven: Math.round(requiredMoveToBreakEven * 100) / 100,
-      requiredMoveTo1Percent: Math.round(requiredMoveTo1Percent * 100) / 100,
-      requiredMoveTo5Percent: Math.round(requiredMoveTo5Percent * 100) / 100,
-      requiredMoveTo10Percent: Math.round(requiredMoveTo10Percent * 100) / 100,
-      profitDollars1Percent: Math.round(profitDollars1Percent * 100) / 100,
-      profitDollars5Percent: Math.round(profitDollars5Percent * 100) / 100,
-      profitDollars10Percent: Math.round(profitDollars10Percent * 100) / 100,
-      riskRewardRatio: Math.round(riskRewardRatio * 100) / 100,
-    });
+  if (shares === null) {
+    return {
+      bouncePercent, exitPrice, profitTarget: profitPercent,
+      sharesToBuy: 0, capitalRequired: 0, newTotalShares: position.shares,
+      newAvgCost: position.avgCost, proceeds: 0, totalCost: originalCost,
+      profitDollars: 0, feasible: false,
+    };
   }
 
-  return scenarios;
+  const capitalRequired = shares * position.currentPrice;
+  const newTotalShares = position.shares + shares;
+  const totalCost = originalCost + capitalRequired;
+  const newAvgCost = totalCost / newTotalShares;
+  const proceeds = exitPrice * newTotalShares;
+
+  return {
+    bouncePercent, exitPrice, profitTarget: profitPercent,
+    sharesToBuy: shares,
+    capitalRequired: round2(capitalRequired),
+    newTotalShares,
+    newAvgCost: round2(newAvgCost),
+    proceeds: round2(proceeds),
+    totalCost: round2(totalCost),
+    profitDollars: round2(proceeds - totalCost),
+    feasible: true,
+  };
+}
+
+// Grid: rows = bounce %, columns = profit target
+export function buildExitGrid(position: Position, bounces: number[] = DEFAULT_BOUNCES): ExitPlan[][] {
+  return bounces.map(b => PROFIT_TARGETS.map(p => buildExitPlan(position, b, p)));
+}
+
+// Custom exit price typed by the user
+export function plansForExitPrice(position: Position, exitPrice: number): ExitPlan[] {
+  const bounce = ((exitPrice - position.currentPrice) / position.currentPrice) * 100;
+  return PROFIT_TARGETS.map(p => {
+    const plan = buildExitPlan(position, bounce, p);
+    return { ...plan, exitPrice: round2(exitPrice), bouncePercent: round2(bounce) };
+  });
+}
+
+// Inverse: user has a budget. What average does it buy, and what exit price is breakeven?
+export function planForBudget(position: Position, budget: number) {
+  const shares = Math.floor(budget / position.currentPrice);
+  const newTotalShares = position.shares + shares;
+  const totalCost = position.shares * position.avgCost + shares * position.currentPrice;
+  const newAvgCost = totalCost / newTotalShares;
+  const bounceToBreakeven = ((newAvgCost - position.currentPrice) / position.currentPrice) * 100;
+  return {
+    sharesToBuy: shares,
+    capitalRequired: round2(shares * position.currentPrice),
+    newTotalShares,
+    newAvgCost: round2(newAvgCost),
+    breakEvenPrice: round2(newAvgCost),
+    bounceToBreakeven: round2(bounceToBreakeven),
+    exit1: round2(newAvgCost * 1.01),
+    exit5: round2(newAvgCost * 1.05),
+    exit10: round2(newAvgCost * 1.10),
+  };
 }
 
 export function getCurrentLossPercent(position: Position): number {
-  return Math.round(((position.currentPrice - position.avgCost) / position.avgCost) * 10000) / 100;
+  return round2(((position.currentPrice - position.avgCost) / position.avgCost) * 100);
 }
 
 export function getCurrentLossDollar(position: Position): number {
-  return Math.round((position.currentPrice - position.avgCost) * position.shares * 100) / 100;
+  return round2((position.currentPrice - position.avgCost) * position.shares);
 }
 
 export function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(value);
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
 }
 
 export function formatPercent(value: number): string {
   const sign = value >= 0 ? '+' : '';
   return `${sign}${value.toFixed(2)}%`;
+}
+
+function round2(n: number) {
+  return Math.round(n * 100) / 100;
 }
