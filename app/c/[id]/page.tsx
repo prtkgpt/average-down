@@ -1,168 +1,116 @@
-import Calculator from '@/components/Calculator';
-import AdUnit from '@/components/AdUnit';
+import { notFound } from 'next/navigation';
+import prisma from '@/lib/db';
+import ScenarioTable from '@/components/ScenarioTable';
+import { formatCurrency, formatPercent, getCurrentLossPercent, getCurrentLossDollar } from '@/lib/calculations';
+import type { Metadata } from 'next';
 
-async function getStats() {
-  try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/stats`, {
-      cache: 'no-store',
-    });
-    return await response.json();
-  } catch (error) {
-    return { topTickers: [], calculationsToday: 0, recentCalculations: [] };
+type Props = {
+  params: { id: string }
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const calculation = await prisma.savedCalculation.findUnique({
+    where: { id: params.id },
+  });
+
+  if (!calculation) {
+    return {
+      title: 'Calculation Not Found - AverageDown.io',
+    };
+  }
+
+  const position = calculation.positionData as any;
+  
+  return {
+    title: `${position.ticker} Recovery Plan - AverageDown.io`,
+    description: `Shared ${position.ticker} averaging down calculation. See the complete recovery strategy.`,
   }
 }
 
-export default async function Home() {
-  const stats = await getStats();
+export default async function SavedCalculationPage({ params }: Props) {
+  const calculation = await prisma.savedCalculation.findUnique({
+    where: { id: params.id },
+  });
+
+  if (!calculation) {
+    notFound();
+  }
+
+  // Increment view count
+  await prisma.savedCalculation.update({
+    where: { id: params.id },
+    data: { views: { increment: 1 } },
+  });
+
+  const position = calculation.positionData as any;
+  const scenarios = calculation.scenarios as any[];
+  
+  const currentLossPercent = getCurrentLossPercent(position);
+  const currentLossDollar = getCurrentLossDollar(position);
 
   return (
     <div className="py-12 px-4 sm:px-6 lg:px-8">
-      {/* Hero Section */}
-      <div className="max-w-4xl mx-auto text-center mb-12">
-        <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-          Turn Your Stock Losses Into Profits
-        </h1>
-        <p className="text-xl text-gray-600 mb-2">
-          Calculate exactly how many shares to buy to recover from your losing position
-        </p>
-        <p className="text-sm text-gray-500">
-          {stats.calculationsToday > 0 && `${stats.calculationsToday.toLocaleString()} calculations today`}
-        </p>
-      </div>
-
-      {/* Calculator */}
-      <Calculator />
-
-      {/* Ad Unit - Below Calculator */}
       <div className="max-w-6xl mx-auto">
-        <AdUnit slot="1234567890" format="horizontal" />
-      </div>
-
-      {/* How It Works */}
-      <div id="how-it-works" className="max-w-6xl mx-auto mt-16 mb-12">
-        <h2 className="text-3xl font-bold text-gray-900 mb-8 text-center">How It Works</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <div className="text-4xl mb-4">📊</div>
-            <h3 className="text-xl font-bold mb-2">1. Enter Your Position</h3>
-            <p className="text-gray-600">
-              Input your ticker, current shares, average cost, and current price. 
-              Takes less than 30 seconds.
-            </p>
-          </div>
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <div className="text-4xl mb-4">🧮</div>
-            <h3 className="text-xl font-bold mb-2">2. See Your Scenarios</h3>
-            <p className="text-gray-600">
-              Get instant calculations showing exactly how many shares to buy at different 
-              price targets for break-even or profit.
-            </p>
-          </div>
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <div className="text-4xl mb-4">✅</div>
-            <h3 className="text-xl font-bold mb-2">3. Execute Your Plan</h3>
-            <p className="text-gray-600">
-              Choose a scenario that fits your budget and risk tolerance. 
-              Share your calculation or save it for later.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Example */}
-      <div className="max-w-4xl mx-auto mb-12 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg shadow-lg p-8">
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">Real Example</h2>
-        <div className="space-y-2 text-gray-700">
-          <p>
-            <strong>Problem:</strong> You bought 10 shares of FVRR at $19.87. It's now trading at $16.66. 
-            You're down $32.05 (-16.13%).
-          </p>
-          <p>
-            <strong>You decide:</strong> you think FVRR can bounce 5% to $17.49 tomorrow.
-          </p>
-          <p>
-            <strong>The tool tells you:</strong> buy 29 shares today at $16.66 ($483). Your average drops to $17.48.
-            Sell all 39 shares at $17.49 and you are at break even. Want 1% profit? Buy 39 shares ($650).
-            Want to spend less? Pick a bigger bounce. At +10% ($18.33) you break even with 10 shares ($167).
-          </p>
-          <p>
-            <strong>The point:</strong> you choose the bounce you believe in. The tool gives you the share count and the sell order.
-          </p>
-          <p className="text-sm text-gray-600 mt-4">
-            This is the exact calculation that inspired AverageDown.io
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            Shared ${position.ticker} Recovery Calculation
+          </h1>
+          <p className="text-gray-600">
+            Created {new Date(calculation.createdAt).toLocaleDateString()} · 
+            {calculation.views > 1 && ` ${calculation.views} views`}
           </p>
         </div>
-      </div>
 
-      {/* Popular Tickers */}
-      {stats.topTickers && stats.topTickers.length > 0 && (
-        <div id="popular-tickers" className="max-w-6xl mx-auto mb-12">
-          <h2 className="text-3xl font-bold text-gray-900 mb-8 text-center">
-            Most Calculated Tickers
-          </h2>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            {stats.topTickers.map((ticker: any) => (
-              <a
-                key={ticker.ticker}
-                href={`/calculator/${ticker.ticker}`}
-                className="bg-white rounded-lg shadow p-4 hover:shadow-lg transition-shadow"
-              >
-                <div className="text-2xl font-bold text-gray-900">${ticker.ticker}</div>
-                <div className="text-sm text-gray-600">
-                  {ticker.calculationCount.toLocaleString()} calculations
-                </div>
-                {ticker.avgLossPercent && (
-                  <div className="text-xs text-red-600 mt-1">
-                    Avg loss: {ticker.avgLossPercent.toFixed(1)}%
-                  </div>
-                )}
-              </a>
-            ))}
+        {/* Position Summary */}
+        <div className="bg-gradient-to-r from-red-50 to-orange-50 rounded-lg shadow-lg p-6 mb-8 border-l-4 border-danger">
+          <h3 className="text-xl font-bold mb-4 text-gray-800">Position Details</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div>
+              <div className="text-sm text-gray-600">Ticker</div>
+              <div className="text-2xl font-bold text-gray-900">${position.ticker}</div>
+            </div>
+            <div>
+              <div className="text-sm text-gray-600">Shares Owned</div>
+              <div className="text-2xl font-bold text-gray-900">{position.shares}</div>
+            </div>
+            <div>
+              <div className="text-sm text-gray-600">Average Cost</div>
+              <div className="text-2xl font-bold text-gray-900">
+                {formatCurrency(position.avgCost)}
+              </div>
+            </div>
+            <div>
+              <div className="text-sm text-gray-600">Current Price</div>
+              <div className="text-2xl font-bold text-gray-900">
+                {formatCurrency(position.currentPrice)}
+              </div>
+            </div>
+          </div>
+          <div className="mt-4 pt-4 border-t border-orange-200">
+            <div className="text-sm text-gray-600">Current Loss</div>
+            <div className="text-2xl font-bold text-danger">
+              {formatCurrency(currentLossDollar)} ({formatPercent(currentLossPercent)})
+            </div>
           </div>
         </div>
-      )}
 
-      {/* Ad Unit - Bottom of page */}
-      <div className="max-w-6xl mx-auto mt-12">
-        <AdUnit slot="0987654321" format="horizontal" />
-      </div>
+        {/* Scenarios */}
+        <ScenarioTable grid={scenarios as any} position={position} />
 
-      {/* FAQ */}
-      <div className="max-w-4xl mx-auto mt-16">
-        <h2 className="text-3xl font-bold text-gray-900 mb-8 text-center">
-          Frequently Asked Questions
-        </h2>
-        <div className="space-y-6">
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <h3 className="text-lg font-bold mb-2">Is averaging down a good strategy?</h3>
-            <p className="text-gray-600">
-              Averaging down can be effective if you believe in the company's fundamentals and 
-              the price drop is temporary. However, it increases your position size and risk. 
-              Never average down on positions you wouldn't buy today.
-            </p>
-          </div>
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <h3 className="text-lg font-bold mb-2">Is this financial advice?</h3>
-            <p className="text-gray-600">
-              No. AverageDown.io is a calculator tool that provides mathematical scenarios. 
-              This is not investment advice. Always do your own research and consider consulting 
-              a financial advisor before making investment decisions.
-            </p>
-          </div>
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <h3 className="text-lg font-bold mb-2">How accurate are the calculations?</h3>
-            <p className="text-gray-600">
-              Our calculations are mathematically precise based on the inputs you provide. 
-              However, they don't account for transaction fees, taxes, or market volatility. 
-              Actual results will vary.
-            </p>
-          </div>
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <h3 className="text-lg font-bold mb-2">Is this service free?</h3>
-            <p className="text-gray-600">
-              Yes, AverageDown.io is completely free to use. We're supported by advertising.
-            </p>
-          </div>
+        {/* CTA */}
+        <div className="text-center mt-12">
+          <a
+            href="/"
+            className="inline-block bg-primary hover:bg-green-600 text-white font-bold py-4 px-8 rounded-lg transition duration-200"
+          >
+            Calculate Your Own Position
+          </a>
+        </div>
+
+        <div className="text-center mt-6 text-sm text-gray-600">
+          <p>
+            This calculation is for informational purposes only and is not financial advice.
+          </p>
         </div>
       </div>
     </div>
